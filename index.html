@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skibi Puzzle Game</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent scrolling */
+        }
+        #title {
+            font-size: 3em;
+            margin-top: 20px;
+        }
+        #puzzle-thumbnails, #puzzle-options, #play-button {
+            margin-top: 20px;
+        }
+        .thumbnail {
+            width: 100px;
+            height: auto;
+            margin: 0 10px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .selected {
+            border-color: blue;
+        }
+        #puzzle-area {
+            display: none;
+            position: relative;
+            width: 600px;
+            height: 400px;
+            margin: 20px auto;
+            border: 2px solid black;
+        }
+        .puzzle-piece {
+            position: absolute;
+            cursor: pointer;
+            background-size: 600px 400px; /* Adapt to the image size */
+        }
+        .hint-box {
+            position: absolute;
+            z-index: -1; /* Place behind puzzle pieces */
+            display: none;
+        }
+        #win-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 50px;
+            font-size: 2em;
+        }
+        #win-screen img {
+            cursor: pointer;
+            width: 100px;
+            height: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="title">Skibi</div>
+    <div id="puzzle-thumbnails">
+        <img src="puzzle1.png" alt="Puzzle 1" class="thumbnail" onclick="selectPuzzle('puzzle1.png')">
+        <img src="puzzle2.png" alt="Puzzle 2" class="thumbnail" onclick="selectPuzzle('puzzle2.png')">
+    </div>
+    <div id="puzzle-options">
+        <label for="piece-count">Choose number of pieces:</label>
+        <select id="piece-count">
+            <option value="4">4</option>
+            <option value="9">9</option>
+            <option value="16">16</option>
+        </select>
+    </div>
+    <div id="play-button">
+        <button onclick="startGame()">Play</button>
+    </div>
+    <div id="puzzle-area"></div>
+    <div id="hint-button" style="margin-top: 20px;">
+        <button id="show-hints" style="display: none;" onclick="toggleHints()">Show Hints</button>
+    </div>
+    <div id="win-screen">
+        You Win!
+        <img src="trophy.png" alt="Trophy" onclick="restartGame()">
+    </div>
+
+    <script>
+        let selectedPuzzle = 'puzzle1.png';
+        let pieceCount = 4;
+        let hintsVisible = false;
+        const hintColors = ['rgba(255, 0, 0, 0.3)', 'rgba(0, 255, 0, 0.3)', 'rgba(0, 0, 255, 0.3)', 'rgba(255, 255, 0, 0.3)', 'rgba(255, 0, 255, 0.3)', 'rgba(0, 255, 255, 0.3)', 'rgba(128, 0, 128, 0.3)', 'rgba(128, 128, 0, 0.3)', 'rgba(0, 128, 128, 0.3)', 'rgba(128, 0, 0, 0.3)', 'rgba(0, 128, 0, 0.3)', 'rgba(0, 0, 128, 0.3)', 'rgba(255, 165, 0, 0.3)', 'rgba(165, 42, 42, 0.3)', 'rgba(75, 0, 130, 0.3)', 'rgba(255, 20, 147, 0.3)'];
+
+        function selectPuzzle(puzzle) {
+            selectedPuzzle = puzzle;
+            document.querySelectorAll('.thumbnail').forEach(thumb => {
+                thumb.classList.remove('selected');
+            });
+            document.querySelector(`img[src="${puzzle}"]`).classList.add('selected');
+        }
+
+        document.getElementById('piece-count').addEventListener('change', function(event) {
+            pieceCount = parseInt(event.target.value);
+        });
+
+        function startGame() {
+            const puzzleArea = document.getElementById('puzzle-area');
+            const winScreen = document.getElementById('win-screen');
+            puzzleArea.innerHTML = '';
+            puzzleArea.style.display = 'block';
+            document.getElementById('show-hints').style.display = 'block';
+            winScreen.style.display = 'none'; // Hide the win screen when the game starts
+
+            hintsVisible = false;
+            document.getElementById('show-hints').textContent = 'Show Hints'; // Set button text
+            document.querySelectorAll('.hint-box').forEach(box => {
+                box.style.display = 'none'; // Hide all hint boxes
+            });
+
+            const rows = Math.sqrt(pieceCount);
+            const cols = Math.sqrt(pieceCount);
+            const pieceWidth = puzzleArea.clientWidth / cols;
+            const pieceHeight = puzzleArea.clientHeight / rows;
+
+            for (let i = 0; i < pieceCount; i++) {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                const color = hintColors[i % hintColors.length];
+
+                const div = document.createElement('div');
+                div.classList.add('puzzle-piece');
+                div.style.width = `${pieceWidth}px`;
+                div.style.height = `${pieceHeight}px`;
+                div.style.backgroundImage = `url(${selectedPuzzle})`;
+                div.style.backgroundPosition = `-${col * pieceWidth}px -${row * pieceHeight}px`;
+                div.dataset.top = row * pieceHeight;
+                div.dataset.left = col * pieceWidth;
+                div.style.top = `${Math.random() * (puzzleArea.clientHeight - pieceHeight)}px`;
+                div.style.left = `${Math.random() * (puzzleArea.clientWidth - pieceWidth)}px`;
+                div.style.outline = `2px solid ${color}`;
+                div.draggable = true;
+                div.ondragstart = drag;
+                puzzleArea.appendChild(div);
+
+                // Add hint box
+                const hintBox = document.createElement('div');
+                hintBox.classList.add('hint-box');
+                hintBox.style.width = `${pieceWidth}px`;
+                hintBox.style.height = `${pieceHeight}px`;
+                hintBox.style.top = `${row * pieceHeight}px`;
+                hintBox.style.left = `${col * pieceWidth}px`;
+                hintBox.style.backgroundColor = color;
+                puzzleArea.appendChild(hintBox);
+            }
+
+            puzzleArea.ondragover = allowDrop;
+            puzzleArea.ondrop = drop;
+        }
+
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function drag(event) {
+            event.dataTransfer.setData("text", event.target.style.backgroundPosition);
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            const puzzleArea = document.getElementById('puzzle-area');
+            const data = event.dataTransfer.getData("text");
+            const piece = Array.from(document.getElementsByClassName('puzzle-piece'))
+                .find(el => el.style.backgroundPosition === data);
+
+            const rect = puzzleArea.getBoundingClientRect();
+            const x = event.clientX - rect.left - (piece.clientWidth / 2);
+            const y = event.clientY - rect.top - (piece.clientHeight / 2);
+
+            const targetLeft = parseInt(piece.dataset.left);
+            const targetTop = parseInt(piece.dataset.top);
+
+            // Check if the piece is close enough to the correct position
+            if (Math.abs(x - targetLeft) < 10 && Math.abs(y - targetTop) < 10) {
+                piece.style.left = `${targetLeft}px`;
+                piece.style.top = `${targetTop}px`;
+                piece.draggable = false; // Disable dragging for locked pieces
+            } else {
+                piece.style.left = `${x}px`;
+                piece.style.top = `${y}px`;
+            }
+
+            checkWin();
+        }
+
+        function toggleHints() {
+            hintsVisible = !hintsVisible;
+            document.querySelectorAll('.hint-box').forEach(box => {
+                box.style.display = hintsVisible ? 'block' : 'none';
+            });
+            document.getElementById('show-hints').textContent = hintsVisible ? 'Hide Hints' : 'Show Hints';
+        }
+
+        function checkWin() {
+            const pieces = document.getElementsByClassName('puzzle-piece');
+            let allCorrect = true;
+
+            for (let piece of pieces) {
+                const left = parseInt(piece.style.left);
+                const top = parseInt(piece.style.top);
+                const targetLeft = parseInt(piece.dataset.left);
+                const targetTop = parseInt(piece.dataset.top);
+
+                if (left !== targetLeft || top !== targetTop) {
+                    allCorrect = false;
+                    break;
+                }
+            }
+
+            if (allCorrect) {
+                document.getElementById('win-screen').style.display = 'block';
+            }
+        }
+
+        function restartGame() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>
+
